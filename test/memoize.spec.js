@@ -12,23 +12,39 @@ describe("Memoized function", function () {
         return Math.round(Math.sqrt(power));
     }
 
-    var absSpy;
-    var memoizedAbs;
+    function grep(pattern, ...items) {
+        if (!(pattern instanceof RegExp)) {  // Special case
+            return undefined;
+        }
+        return items.map(String).filter(pattern.test.bind(pattern));
+    }
+
+    var absSpy, grepSpy;
+    var memoizedAbs, memoizedGrep;
 
     beforeEach(function () {
         absSpy = chai.spy(abs);
         memoizedAbs = memoize(absSpy);
+        grepSpy = chai.spy(grep);
+        memoizedGrep = memoize(grepSpy);
     });
 
     it("should delegate calls to target function", function() {
         expect(memoizedAbs(0, 1)).to.equal(1);
         expect(memoizedAbs(3, 4)).to.equal(5);
+        expect(memoizedGrep(/\d+/, "abc", "123", "def")).to.deep.equal(["123"]);
     });
 
     it("should return correct values in case of the consequent calls with identical arguments", function() {
         for (var i = 0; i < 2; i++) {
             expect(memoizedAbs(3, 4)).to.equal(5);
         }
+    });
+
+    it("should cache undefined result as legal (non empty) value", function() {
+        expect(memoizedGrep()).to.equal(undefined);
+        expect(memoizedGrep()).to.equal(undefined);
+        expect(grepSpy).to.have.been.called.once();
     });
 
     it("should cache results of the consequent calls with identical arguments", function() {
@@ -47,9 +63,14 @@ describe("Memoized function", function () {
     });
 
     it("should use all arguments to compute cache key", function() {
-        for (var i = 0; i < 2; i++) {
-            memoizedAbs(1, 2, 3, 4, 5);
-        }
-        expect(absSpy).to.have.been.called.once();
+        memoizedAbs(1, 2, 3, 4, 5);
+        memoizedAbs(1, 2, 3, 4);
+        expect(absSpy).to.have.been.called.twice();
+    });
+
+    it("should use complicated enough key generator to distinguish different types", function() {
+        expect(memoizedGrep(/\d+/, "1", 2, "true")).to.deep.equal(["1", "2"]);
+        expect(memoizedGrep(/\d+/, 1, "2", true)).to.deep.equal(["1", "2"]);
+        expect(grepSpy).to.have.been.called.twice();
     });
 });
