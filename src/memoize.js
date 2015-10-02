@@ -8,7 +8,7 @@ function memoize(func) {
         var key;
 		
         key = calcHash(arguments);
-        if (cache[key] === undefined) {
+        if (!(key in cache)) {
             cache[key] = targetFunc.apply(this, arguments);
         }
 		
